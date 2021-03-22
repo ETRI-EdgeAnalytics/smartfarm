@@ -57,15 +57,26 @@ def dataloader4lstm_enc_dec(args):
 
     input_shape = [env.shape, growth.shape, pro1.shape, pro2.shape]
     
-    avg_label_data_list = tf.math.divide_no_nan(pro4, pro3)
-    for e, g, p1, p2, a in zip(env, growth, pro1, pro2, avg_label_data_list):
-        ds.append([
-            [tf.reshape(e, [1, e.shape[0], e.shape[1]]), tf.reshape(g, [1, g.shape[0], g.shape[1]]),
-            tf.reshape(p1, [1, p1.shape[0], p1.shape[1]]), tf.reshape(p2, [1, p2.shape[0], p2.shape[1]])],
-            tf.reshape(a, [1, a.shape[0], a.shape[1], 1])
-        ])
-    output_shape = [avg_label_data_list.shape[0], avg_label_data_list.shape[1], avg_label_data_list.shape[2], 1]
-
+    if args.model.config.avg:
+        avg_label_data_list = tf.math.divide_no_nan(pro4, pro3)
+        for e, g, p1, p2, a in zip(env, growth, pro1, pro2, avg_label_data_list):
+            ds.append([
+                [tf.reshape(e, [1, e.shape[0], e.shape[1]]), tf.reshape(g, [1, g.shape[0], g.shape[1]]),
+                tf.reshape(p1, [1, p1.shape[0], p1.shape[1]]), tf.reshape(p2, [1, p2.shape[0], p2.shape[1]])],
+                tf.reshape(a, [1, a.shape[0], a.shape[1], 1])
+            ])
+        output_shape = [avg_label_data_list.shape[0], avg_label_data_list.shape[1], avg_label_data_list.shape[2], 1]
+    else:
+        for e, g, p1, p2, p3, p4 in zip(env, growth, pro1, pro2, pro3, pro4):
+            p3 = tf.cast(p3, tf.float32)
+            p4 = tf.cast(p4, tf.float32)
+            ds.append([
+                [tf.reshape(e, [1, e.shape[0], e.shape[1]]), tf.reshape(g, [1, g.shape[0], g.shape[1]]), 
+                tf.reshape(p1, [1, p1.shape[0], p1.shape[1]]), tf.reshape(p2, [1, p2.shape[0], p2.shape[1]])], 
+                tf.concat([tf.reshape(p3, [1, p3.shape[0], p3.shape[1], 1]), tf.reshape(p4, [1, p4.shape[0], p4.shape[1], 1])], axis=3)
+            ])
+        output_shape = [pro3.shape[0], pro3.shape[1], pro3.shape[2], 2]
+    
     return ds, input_shape, output_shape
 
 def dataloader4lstm_enc_dec_env(args):
@@ -124,15 +135,25 @@ def dataloader4lstm_enc_dec_env(args):
 
     input_shape = [env.shape]
 
-    avg_label_data_list = tf.math.divide_no_nan(pro4, pro3)
+    if args.model.config.avg:
+        avg_label_data_list = tf.math.divide_no_nan(pro4, pro3)
 
-    for e, a in zip(env, avg_label_data_list):
-        ds.append([
-            [tf.reshape(e, [1, e.shape[0], e.shape[1]])],
-            tf.reshape(a, [1, a.shape[0], a.shape[1], 1])
-        ])
-    output_shape = [avg_label_data_list.shape[0], avg_label_data_list.shape[1], avg_label_data_list.shape[2], 1]
-
+        for e, a in zip(env, avg_label_data_list):
+            ds.append([
+                [tf.reshape(e, [1, e.shape[0], e.shape[1]])],
+                tf.reshape(a, [1, a.shape[0], a.shape[1], 1])
+            ])
+        output_shape = [avg_label_data_list.shape[0], avg_label_data_list.shape[1], avg_label_data_list.shape[2], 1]
+    else:
+        for e, p3, p4 in zip(env, pro3, pro4):
+            p3 = tf.cast(p3, tf.float32)
+            p4 = tf.cast(p4, tf.float32)
+            ds.append([
+                [tf.reshape(e, [1, e.shape[0], e.shape[1]])],
+                tf.concat([tf.reshape(p3, [1, p3.shape[0], p3.shape[1], 1]), tf.reshape(p4, [1, p4.shape[0], p4.shape[1], 1])], axis=3)
+            ])
+        output_shape = [pro3.shape[0], pro3.shape[1], pro3.shape[2], 2]
+    
     return ds, input_shape, output_shape
 
 def make_data_frame(file_names, path, label=False, seek_days=43):

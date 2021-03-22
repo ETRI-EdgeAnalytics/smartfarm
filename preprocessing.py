@@ -56,15 +56,20 @@ def temperature_average(df=None):
     daytime_df = df[(df['시간'] >= 60000) & (df['시간'] <= 190000)]
     daytime_temp = daytime_df['실내온도'].mean()
     
-    nighttime_df = df[(df['시간'] < 60000) | (df['시간'] > 190000)]
-    nighttime_temp = nighttime_df['실내온도'].mean()
+#     nighttime_df = df[(df['시간'] < 60000) | (df['시간'] > 190000)]
+#     nighttime_temp = nighttime_df['실내온도'].mean()
     
     afternoon_df = df[(df['시간'] >= 120000) & (df['시간'] <= 190000)]
     afternoon_temp = afternoon_df['실내온도'].mean()
     
-    temp_avg_list = [daytime_temp, nighttime_temp, afternoon_temp]
+    morning_df = df[(df['시간'] >= 60000) & (df['시간'] <= 120000)]
+    morning_temp = morning_df['실내온도'].mean()
+    
+#     temp_avg_list = [daytime_temp, nighttime_temp, afternoon_temp]
+    temp_avg_list = [daytime_temp, afternoon_temp, morning_temp]
     temp = pd.DataFrame([temp_avg_list])
-    temp.columns = ['주간평균온도', '야간평균온도', '오후부터일몰까지평균온도']
+#     temp.columns = ['주간평균온도', '야간평균온도', '오후부터일몰까지평균온도']
+    temp.columns = ['주간평균온도', '오후부터일몰까지평균온도', '일출부터12시까지평균온도']
     
     return temp
 
@@ -105,12 +110,63 @@ def nighttime_info(df=None):
     nighttime_temp = nighttime_df['실내온도'].mean()
     nighttime_hd_df= nighttime_df[(nighttime_df['HD'] >= 2.8) & (nighttime_df['HD'] <= 6)]
     nighttime_hd = len(nighttime_hd_df['HD']) / 60
-    night_list = [nighttime_temp, nighttime_hd]
+    nighttime_humi = nighttime_df['실내습도'].mean()
+    night_list = [nighttime_temp, nighttime_hd, nighttime_humi]
     
     night = pd.DataFrame([night_list])
-    night.columns = ["야간평균온도", "일몰일출적합증산(HD)누적시간"]
+    night.columns = ["야간평균온도", "일몰일출적합증산(HD)누적시간", "야간평균습도"]
     
     return night
+    
+def temperature_diff_info(df=None):
+    if df is None:
+        raise ValueError(df)
+        
+    date = df['날짜'].unique()
+    count = 0
+    if len(date) == 2:
+        yesterday = df[df['날짜'] == date[0]][-60:]
+        today = df[df['날짜'] == date[1]]
+        new_today = pd.concat([yesterday, today])
+
+        for i in range(60, len(new_today)):
+            partial = new_today[i-60:i+1]
+            diff = partial['실내온도'].max() - partial['실내온도'].min()
+            if np.absolute(diff) >= 5:
+                count += 1
+    #         for t in range(1, 61):
+    #             diff = new_today.iloc[i]['실내온도'] - new_today.iloc[i-t]['실내온도']
+    #             if np.absolute(diff) >= 5:
+    #                 count += 1
+    else:
+        for i in range(60, len(df)):
+            partial = df[i-60:i+1]
+            diff = partial['실내온도'].max() - partial['실내온도'].min()
+            if np.absolute(diff) >= 5:
+                count += 1
+    
+    hourly_temp_diff = pd.DataFrame([count])
+    hourly_temp_diff.columns = ["시간당5도이상의변화수"]
+    
+    return hourly_temp_diff
+
+def humidity_info(df=None): # 주간 평균 습도, 낮 12시부터 일몰까지 평균 습도, 일출부터 낮 12시까지 평균 습도
+    if df is None:
+        raise ValueError(df)
+    daytime_df = df[(df['시간'] >= 60000) & (df['시간'] <= 190000)]
+    daytime_humi = daytime_df['실내습도'].mean()
+    
+    afternoon_df = df[(df['시간'] >= 120000) & (df['시간'] <= 190000)]
+    afternoon_humi = afternoon_df['실내습도'].mean()
+    
+    morning_df = df[(df['시간'] >= 60000) & (df['시간'] <= 120000)]
+    morning_humi = morning_df['실내습도'].mean()
+
+    humi_avg_list = [daytime_humi, afternoon_humi, morning_humi]
+    humi = pd.DataFrame([humi_avg_list])
+    humi.columns = ['주간평균습도', '오후부터일몰까지평균습도', '일출부터12시까지평균습도']
+    
+    return humi
 
 def env_data_preprocessing(args):
     scr = args.env.src_path
@@ -167,8 +223,13 @@ def env_data_preprocessing(args):
         ta = temperature_average(df=new_env_df[new_env_df['날짜'] == date_list[i]])
         su = suitable_info(df=new_env_df[new_env_df['날짜'] == date_list[i]])
         n = nighttime_info(df=new_env_df[(new_env_df['날짜'] == date_list[i]) | (new_env_df['날짜'] == date_list[i+1])])
+        if i > 0:
+            td = temperature_diff_info(df=new_env_df[(new_env_df['날짜'] == date_list[i-1]) | (new_env_df['날짜'] == date_list[i])])
+        else:
+            td = temperature_diff_info(df=new_env_df[(new_env_df['날짜'] == date_list[i])])
+        hu = humidity_info(df=new_env_df[new_env_df['날짜'] == date_list[i]])
         
-        stats = pd.concat([a, s, min_, max_, hd, tt, ta, su, n], axis=1)
+        stats = pd.concat([a, s, min_, max_, hd, tt, ta, su, n, td, hu], axis=1)
         avg_env_df = pd.concat([avg_env_df, stats])
 
         avg_env_df = avg_env_df.reset_index()
@@ -176,8 +237,9 @@ def env_data_preprocessing(args):
         avg_env_df = avg_env_df.interpolate()
         avg_env_df = avg_env_df.drop(columns=['날짜표준편차', '최소날짜', '최대날짜', '시간', '시간표준편차', '최소시간', '최대시간'])
         avg_env_df['주야간온도차이'] = avg_env_df['주간평균온도'] - avg_env_df['야간평균온도']
-        avg_env_df['주야간온도차8도이상인날수'] = 0
+        avg_env_df['주야간습도차이'] = avg_env_df['주간평균습도'] - avg_env_df['야간평균습도']
 
+        avg_env_df['주야간온도차8도이상인날수'] = 0
         x = avg_env_df.iloc[0]['주야간온도차이']
         if np.absolute(x) >= 8:
             avg_env_df.iloc[0]['주야간온도차8도이상인날수'] = 1

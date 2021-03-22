@@ -53,31 +53,63 @@ def draw_harvest_per_sample(out, gt, filename):
     
     cols = 4
     rows = int(np.ceil(h / cols))
-    
-    fig, axes = plt.subplots(ncols=cols, nrows=rows, figsize=(16, 16))
-    out = tf.reshape(out, [h, w])
-    gt = tf.reshape(gt, [h, w])
-    
-    r_index, c_index, s_index = 0, 0, 1
-    for o, g in zip(out, gt):
-        rects1 = axes[r_index][c_index].bar(index - width/2, o, width, label='Pred')
-        rects2 = axes[r_index][c_index].bar(index + width/2, g, width, label='Truth')
-        axes[r_index][c_index].set_title("Sample {}".format(s_index))
-        axes[r_index][c_index].legend()
-        autolabel(axes[r_index][c_index], rects1, "left")
-        autolabel(axes[r_index][c_index], rects2, "right")
+    if c == 1:
+        fig, axes = plt.subplots(ncols=cols, nrows=rows, figsize=(16, 16))
+        out = tf.reshape(out, [h, w])
+        gt = tf.reshape(gt, [h, w])
         
-        c_index += 1
-        s_index += 1
+        r_index, c_index, s_index = 0, 0, 1
+        for o, g in zip(out, gt):
+            rects1 = axes[r_index][c_index].bar(index - width/2, o, width, label='Pred')
+            rects2 = axes[r_index][c_index].bar(index + width/2, g, width, label='Truth')
+            axes[r_index][c_index].set_title("Sample {}".format(s_index))
+            axes[r_index][c_index].legend()
+            autolabel(axes[r_index][c_index], rects1, "left")
+            autolabel(axes[r_index][c_index], rects2, "right")
+            
+            c_index += 1
+            s_index += 1
+            
+            if c_index == cols:
+                r_index += 1
+                c_index = 0
         
-        if c_index == cols:
-            r_index += 1
-            c_index = 0
-    
-    d_index = r_index * cols + c_index
-    
-    for i in range(d_index, rows * cols):
-        fig.delaxes(axes.flatten()[i])
+        d_index = r_index * cols + c_index
         
-    fig.tight_layout()
-    plt.savefig(filename)
+        for i in range(d_index, rows * cols):
+            fig.delaxes(axes.flatten()[i])
+            
+        fig.tight_layout()
+        plt.savefig(filename)
+    else:
+        fn = filename.split('.')[0]
+        postfix = ['_num.png', '_kg.png']
+
+        for i, post in enumerate(postfix):
+            fig, axes = plt.subplots(ncols=cols, nrows=rows, figsize=(16, 16))
+            out_split = tf.reshape(out[:, :, :, i], [h, w])
+            gt_split = tf.reshape(gt[:, :, :, i], [h, w])
+            
+            r_index, c_index, s_index = 0, 0, 1
+            for o, g in zip(out_split, gt_split):
+                rects1 = axes[r_index][c_index].bar(index - width/2, o, width, label='Pred')
+                rects2 = axes[r_index][c_index].bar(index + width/2, g, width, label='Truth')
+                axes[r_index][c_index].set_title("Sample {}".format(s_index))
+                axes[r_index][c_index].legend()
+                autolabel(axes[r_index][c_index], rects1, "left")
+                autolabel(axes[r_index][c_index], rects2, "right")
+                
+                c_index += 1
+                s_index += 1
+                
+                if c_index == cols:
+                    r_index += 1
+                    c_index = 0
+            
+            d_index = r_index * cols + c_index
+            
+            for i in range(d_index, rows * cols):
+                fig.delaxes(axes.flatten()[i])
+                
+            fig.tight_layout()
+            plt.savefig(fn+post)
