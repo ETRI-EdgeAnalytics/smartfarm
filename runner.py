@@ -295,10 +295,10 @@ def multi_encoder_train(args):
 
 def multi_encoder_infer(args):
     # get data loader - [[data], [label]]
-    ds = get_dataloader(args)
+    ds, input_shapes, output_shape = get_dataloader(args)
     # input parameters for lstm_inc_dec model
-    args.model.config.input_shapes = get_input_shapes(args)
-    args.model.config.output_shape = get_output_shapes(args)
+    args.model.config.input_shapes = input_shapes
+    args.model.config.output_shape = output_shape
 
     save_path = args.util.save_path
     pretrained_path = args.model.pretrained_path
