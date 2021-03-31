@@ -11,7 +11,7 @@ $ bash [your_anaconda_file]
 $ source ~/.bashrc
 $ conda create --name [your_conda_env_name] python=3.7
 $ conda activate [your_conda_env_name]
-$ conda install tensorflow-gpu==2.2.0 pandas numpy numba matplotlib scikit-learn openpyxl xlrd tqdm pickle ploty ploty_express joblib
+$ conda install -c conda-forge tensorflow-gpu==2.2.0 pandas numpy numba matplotlib scikit-learn openpyxl xgboost xlrd==1.2.0 tqdm plotly plotly_express joblib seaborn psutil
 ~~~
 
 ## 프로그램 다운로드
