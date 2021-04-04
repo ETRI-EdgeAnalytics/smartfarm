@@ -20,8 +20,6 @@ def rf_dataloader(args):
 
     dl = args.settings.dataloader
 
-    one_week = 7
-
     """ 
         생육 데이터 전처리 
     """
@@ -38,7 +36,7 @@ def rf_dataloader(args):
     df_grw_feat = df_grw_sort.reindex(columns = dl.grw_features)
 
     # 주간 생육상태 features 전처리
-    for [samp,date], rows in df_grw_feat.iterrows():
+    for [samp, date], rows in df_grw_feat.iterrows():
         df_grw_feat.loc[samp,:].replace(to_replace=0.0,
                                             method='ffill',inplace=True)
 
