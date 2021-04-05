@@ -3,7 +3,7 @@
     "model":{
         "name" : "rf"
     },
-    "main_dir":"./",
+    
 
     "input":{
         "path":"dataset/2nd_data/myeong/",
