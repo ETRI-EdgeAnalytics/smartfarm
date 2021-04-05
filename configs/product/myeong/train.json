@@ -1,7 +1,19 @@
 {
     "mode": "multi_encoder_train",
-    "data":{
-        "train_data":{
+    "model":{
+        "name":"lstm_enc_dec",
+        "config": {
+            "permute": false,
+            "avg": false,
+            "input_shapes": [],
+            "output_shape": [],
+            "explain": true,
+            "env_only": false
+        }
+    },
+
+    "input":{
+        "feature_data":{
             "path": "./dataset/2nd_data/myeong",
             "names": ["myeong_env_detail_data.xlsx", "myeong_growth_detail_data.xlsx", "myeong_product_1_data.xlsx", "myeong_product_2_data.xlsx"]
         },
@@ -13,23 +25,27 @@
         "seek_days": 42
     },
 
-    "model":{
-        "name":"lstm_enc_dec",
-        "pretrained_path": "./experiments/lstm_enc_dec/ckpt",
-        "config": {
-            "permute": false,
-            "avg": false,
-            "input_shapes": [],
-            "output_shape": [],
-            "explain": true,
-            "env_only": false
-        }
+    "output":{
+        "dir": "./experiments/product",
+        "model_dir" : "./experiments/product/myeong/models/",
+        "stat_dir" : "./experiments/product/myeong/train/stats/",
+        "pred_dir" : "./experiments/product/myeong/train/prediction/",
+        "checkpoint_dir" : "./experiments/product/myeong/train/checkpoints/",
+        "model_file": "product_model.h5",
+        "pred_file" : "pred.csv",
+        "ground_file": "groundtruth.csv",
+        "harvest_file": "harvest.png"
     },
 
+
+
     "train":{
-        "epochs": 500,
+        "total_epochs": 500,
         "batch": 1,
-        "metric": "mse"
+        "metric": "mse",
+        "save_path": "./experiments/product/myeong/train/",
+        "ground_truth_file" : ""
+
     },
 
     "optimizer":{

@@ -235,79 +235,94 @@ def rf_infer(args):
         
 
 def multi_encoder_train(args):
-    #@tf.function
-    def train_step(inp, targ, model, optimizer):
+    """ 
+    multi encoder를 사용해서 Product 훈련 및 검증 
+    """
 
+    def train_step(inp, targ, model, optimizer):
+        """ 
+        훈련 과정 1 step; gradient계산 및 적용
+        """
         with tf.GradientTape() as tape:
             out = model(inp, training=True)
             loss = keras.losses.mean_squared_error(targ, out)
-        gradients =tape.gradient(loss, model.trainable_variables)
+        gradients = tape.gradient(loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-
         return loss, out
 
     def inference(inp, targ, model):
+        """ 
+        추론 함수
+        """
         test_loss = keras.metrics.Mean(name="test_loss")
         out = model(inp, training=False)
         loss = keras.losses.mean_squared_error(targ, out)
         test_loss(loss)
-
         template = 'Test Loss: {}'
         print(template.format(test_loss.result()))
-
         return out
 
+    # 파일로부터 설정 가져오기
+    print("Loading json file...")
+    ou = args.output
+    tr = args.train
+    os.makedirs(ou.stat_dir,exist_ok=True)
+    os.makedirs(ou.pred_dir,exist_ok=True)
+    os.makedirs(ou.checkpoint_dir,exist_ok=True)
+    
+
     # get data loader - [[data], [label]]
+    print("Getting dataloader...")
     ds, input_shapes, output_shape = get_dataloader(args)
-    print("input and output shape")
+    print("Input and output shape: ")
     print(input_shapes, output_shape)
-    print("="*20)
-    train_ds = ds[:-3]
-    test_ds = ds[-2:-1]
+    print("=" * 20)
+    train_ds = ds[: -3]
+    test_ds = ds[-2 : -1]
     # input parameters for lstm_inc_dec model
     args.model.config.input_shapes = input_shapes
     args.model.config.output_shape = output_shape
 
     save_path = args.util.save_path
-    
-    # Select device
+    """ 
+    디바이스 설정 및 훈련 시작
+    """
+    print("Select device... "+args.device.name)
     with tf.device(args.device.name):
-        # model create
+        # 모델 불러오기
+        print("Setting up Model and optimizer...")
         model = get_model(args)
-        # optimizer create
         optimizer = get_optimizer(args)
-        # loss metric setting
         train_loss = keras.metrics.Mean(name="train_loss")
-        # model save setting
-        checkpoint_dir = os.path.join(save_path, 'ckpt/ckpt')
+        # checkpoint_dir = os.path.join(save_path, 'ckpt/ckpt')
         checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
 
-        # Set epochs
-        EPOCHS = args.train.epochs
-
-        # Start training
-        for epoch in range(EPOCHS):
+        # 훈련 시작
+        print("Training start...")
+        for epoch in range(tr.total_epochs):
             train_loss.reset_states()
-
-            for data, targets in train_ds:
-                loss, out = train_step(data, targets, model, optimizer)
-
+            for X_train, y_train in train_ds:
+                loss, out = train_step(X_train, y_train, model, optimizer)
                 train_loss(loss)
             
+            # 10 Epoch마다 loss 표기
             if epoch % 10 == 0:
                 template = 'Epoch {}, Loss: {}'
-                print(template.format(epoch+1, train_loss.result()))
-            
-            if epoch % 100 == 0 or epoch == (EPOCHS - 1):
-                checkpoint.save(file_prefix=checkpoint_dir)
-                test_data, test_targets = test_ds[-1]
-                out = inference(test_data, test_targets, model)
-                output_path = os.path.join(save_path, 'output.csv')
-                groundtruth_path = os.path.join(save_path, 'groundtruth.csv')
-                tensor2csv(output_path, out)
-                tensor2csv(groundtruth_path, test_targets)
-                harvest_path = os.path.join(save_path, 'harvest.png')
-                draw_harvest_per_sample(out, test_targets, harvest_path)
+                print(template.format(epoch + 1, train_loss.result()))
+
+            # 100 Epoch마다 checkpoint 저장 및 테스트 확인
+            if epoch % 100 == 0 or epoch == (tr.total_epochs - 1):
+                print("Epoch {}: Saving Checkpoint...".format(epoch))
+                checkpoint.save(file_prefix= ou.checkpoint_dir)
+
+                # validation 검증
+                print("Validating training...")
+                X_val , y_val = test_ds[-1]
+                y_pred = inference(X_val, y_val, model)
+                tensor2csv(ou.pred_dir + ou.pred_file , y_pred)
+                tensor2csv(ou.pred_dir + ou.ground_file, y_val)
+                draw_harvest_per_sample(y_pred, 
+                                        y_val, ou.pred_dir + ou.harvest_file)
         
         # Drawing heatmap and bar chart for explanation
         if args.model.config.explain:
@@ -315,14 +330,14 @@ def multi_encoder_train(args):
                 if args.util.env_heatmap.avail:
                     e = model.explain(test_ds, return_heatmap=True)
                     x_labels = args.util.env_heatmap.x_labels
-                    y_labels = [str(i) for i in range(args.data.seek_days, 0, -1)]
+                    y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
                     heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
             else:
                 e, g, _, _ = model.explain(test_ds, return_heatmap=True)
                 if args.util.env_heatmap.avail:
                     x_labels = args.util.env_heatmap.x_labels
-                    y_labels = [str(i) for i in range(args.data.seek_days, 0, -1)]
+                    y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
                     heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
                     bar_name = "bar_" + args.util.env_heatmap.name
@@ -331,7 +346,7 @@ def multi_encoder_train(args):
                 
                 if args.util.growth_heatmap.avail:
                     x_labels = args.util.growth_heatmap.x_labels
-                    y_labels = [str(i) for i in range(1, args.data.num_samples+1)]
+                    y_labels = [str(i) for i in range(1, args.input.num_samples+1)]
                     heatmap_path = os.path.join(save_path, args.util.growth_heatmap.name)
                     draw_heatmap(heatmap=g, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
                     bar_name = "bar_" + args.util.growth_heatmap.name
@@ -339,16 +354,24 @@ def multi_encoder_train(args):
                     draw_bargraph(data=g, filename=bar_path, x_labels=x_labels)
 
 def multi_encoder_infer(args):
+    """ 
+    Product 데이터 추론
+    """
+    inn = args.input
+    ou = args.output
+
     # get data loader - [[data], [label]]
+    print("Setting Dataloader...")   
     ds, input_shapes, output_shape = get_dataloader(args)
     # input parameters for lstm_inc_dec model
     args.model.config.input_shapes = input_shapes
     args.model.config.output_shape = output_shape
 
     save_path = args.util.save_path
-    pretrained_path = args.model.pretrained_path
     
-    # Select device
+    
+    # 모델 설정
+    print("Loading Model...")
     with tf.device(args.device.name):
         # model create
         model = get_model(args)
@@ -356,31 +379,31 @@ def multi_encoder_infer(args):
         optimizer = get_optimizer(args)
         # load weights from file
         checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-        checkpoint.restore(tf.train.latest_checkpoint(pretrained_path)).expect_partial()
+        checkpoint.restore(tf.train.latest_checkpoint(inn.checkpoint_dir)).expect_partial()
 
-        for data, targets in ds:
-            out = model(data, training=False)
-            output_path = os.path.join(save_path, 'output.csv')
-            groundtruth_path = os.path.join(save_path, 'groundtruth.csv')
-            tensor2csv(output_path, out)
-            tensor2csv(groundtruth_path, targets)
-            harvest_path = os.path.join(save_path, 'harvest.png')
-            draw_harvest_per_sample(out, targets, harvest_path)
-
-        # Drawing heatmap and bar chart for explanation
+        # 추론 진행 
+        print("Starting Inference...")
+        for X_test, y_test in ds:
+            y_pred = model(X_test, training=False)
+            tensor2csv(ou.pred_dir + ou.pred_file , y_pred)
+            tensor2csv(ou.pred_dir + ou.ground_file, y_test)
+            draw_harvest_per_sample(y_pred, y_test, ou.pred_dir + ou.harvest_file)
+        
+        # 설명 그래프 그리기
+        print("Drawing heatmap and bar chart for explanation...")
         if args.model.config.explain:
             if args.model.config.env_only:
                 if args.util.env_heatmap.avail:
                     e = model.explain(ds, return_heatmap=True)
                     x_labels = args.util.env_heatmap.x_labels
-                    y_labels = [str(i) for i in range(args.data.seek_days, 0, -1)]
+                    y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
                     heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
             else:
                 e, g, _, _ = model.explain(ds, return_heatmap=True)
                 if args.util.env_heatmap.avail:
                     x_labels = args.util.env_heatmap.x_labels
-                    y_labels = [str(i) for i in range(args.data.seek_days, 0, -1)]
+                    y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
                     heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
                     bar_name = "bar_" + args.util.env_heatmap.name
@@ -389,7 +412,7 @@ def multi_encoder_infer(args):
                 
                 if args.util.growth_heatmap.avail:
                     x_labels = args.util.growth_heatmap.x_labels
-                    y_labels = [str(i) for i in range(1, args.data.num_samples+1)]
+                    y_labels = [str(i) for i in range(1, args.input.num_samples+1)]
                     heatmap_path = os.path.join(save_path, args.util.growth_heatmap.name)
                     draw_bargraph(data=g, filename=heatmap_path, x_labels=x_labels)
                     bar_name = "bar_" + args.util.growth_heatmap.name
