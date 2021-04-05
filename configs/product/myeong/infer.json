@@ -38,7 +38,6 @@
     },
 
 
-
     "train":{
         "total_epochs": 500,
         "batch": 1,
