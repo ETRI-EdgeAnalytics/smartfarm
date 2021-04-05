@@ -8,7 +8,6 @@ utils/__pycache__/
 
 experiments/*
 dataset/3rd_data/*
-configs/*
 exp/*
 .ipynb_checkpoints/*
 
@@ -20,9 +19,3 @@ test.csv
 dataset/2nd_data/avg_env_data2.xlsx
 dataset/2nd_data/harvest.csv
 
-!configs/beak.json
-!configs/hwang.json
-!configs/kim.json
-!configs/myeong.json
-!configs/env_config.json
-!configs/rf.json

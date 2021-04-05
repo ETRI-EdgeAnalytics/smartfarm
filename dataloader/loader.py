@@ -7,7 +7,7 @@ def get_dataloader(args):
     name = args.model.name
 
     if name == 'lstm_enc_dec':
-        if args.model.config.env_only:
+        if args.settings.dataloader.env_only:
             from .lstm_enc_dec_dataloader import dataloader4lstm_enc_dec_env
             dataloader = dataloader4lstm_enc_dec_env(args)
         else:

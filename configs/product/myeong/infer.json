@@ -1,63 +1,67 @@
 {
     "mode": "multi_encoder_infer",
     "model":{
-        "name":"lstm_enc_dec",
-        "pretrained_path": "./experiments/lstm_enc_dec/ckpt",
-        "config": {
+        "name":"lstm_enc_dec"
+    },
+
+    "input":{
+        "feature_data":{
+            "path": "./dataset/2nd_data/myeong",
+            "names": ["myeong_env_detail_data.xlsx", 
+                "myeong_growth_detail_data.xlsx", 
+                "myeong_product_1_data.xlsx", 
+                "myeong_product_2_data.xlsx"]
+        },
+        "label_data":{
+            "path": "./dataset/2nd_data/myeong",
+            "names": ["myeong_product_3_data.xlsx", 
+                "myeong_product_4_data.xlsx"]
+        },
+        "num_samples": 16,
+        "seek_days": 42,
+        "checkpoint_dir" : "./experiments/product/myeong/checkpoints/"
+
+    },
+
+    "output":{
+        "dir": "./experiments/product",
+        "pred_dir" : "./experiments/product/myeong/test/prediction/",
+        "heatmap_dir" : "./experiments/product/myeong/test/heatmap/",
+
+        "pred_file" : "pred",
+        "ground_file": "groundtruth",
+        "harvest_file": "harvest.png"
+    },
+
+    "settings":{
+
+        "optimizer":{
+            "algorithm": "sgd",
+            "config": {
+                "learning_rate": 0.0001,
+                "momentum": 0.9,
+                "nesterov": true
+            }
+        },
+
+        "dataloader":{
             "permute": false,
             "avg": false,
             "input_shapes": [],
             "output_shape": [],
             "explain": true,
             "env_only": false
-        }
-    },
-
-    "input":{
-        "feature_data":{
-            "path": "./dataset/2nd_data/myeong",
-            "names": ["myeong_env_detail_data.xlsx", "myeong_growth_detail_data.xlsx", "myeong_product_1_data.xlsx", "myeong_product_2_data.xlsx"]
         },
-        "label_data":{
-            "path": "./dataset/2nd_data/myeong",
-            "names": ["myeong_product_3_data.xlsx", "myeong_product_4_data.xlsx"]
+
+        "growth_heatmap": {
+            "avail": true,
+            "name": "growth_heatmap.png",
+            "x_labels": ["샘플번호", "주간생육길이(cm)", "초장(cm)", "줄기굵기(mm)", "잎길이(cm)", "잎폭(cm)",
+                "잎수(개)", "개화화방위치(cm)", "꽃과 줄기거리(cm)", "화방간거리(cm)", "화방경경(mm)", "엽면적지수",
+                "주간생육길이_생육상태", "줄기굵기_생육상태", "잎길이_생육상태", "입폭_생육상태", "입수_생육상태",
+                "엽면적지수_생육상태", "개화화방위치_생육상태", "꽃과줄기거리_생육상태", "생육상태점수", "생장구분"]
         },
-        "num_samples": 16,
-        "seek_days": 42,
-        "checkpoint_dir" : "./experiments/product/myeong/train/checkpoints/"
-    },
 
-    "output":{
-        "dir": "./experiments/product/",
-        "stat_dir" : "./experiments/product/myeong/test/stats/",
-        "pred_dir" : "./experiments/product/myeong/test/prediction/",
-        "model_file": "product_model.h5",
-        "pred_file" : "pred.csv",
-        "ground_file": "groundtruth.csv",
-        "harvest_file": "harvest.png"
-    },
-
-
-    "train":{
-        "total_epochs": 500,
-        "batch": 1,
-        "metric": "mse",
-        "save_path": "./experiments/product/myeong/train/",
-        "ground_truth_file" : ""
-
-    },
-
-    "optimizer":{
-        "algorithm": "sgd",
-        "config": {
-            "learning_rate": 0.0001,
-            "momentum": 0.9,
-            "nesterov": true
-        }
-    },
-
-    "util":{
-        "save_path": "experiments/lstm_enc_dec",
         "env_heatmap": {
             "avail": true,
             "name": "env_heatmap.png",
@@ -76,17 +80,10 @@
                 "일몰일출적합증산(HD)누적시간", "야간평균습도", "시간당5도이상의변화수", "주간평균습도", "오후부터일몰까지평균습도",
                 "일출부터12시까지평균습도", "주야간온도차이", "주야간온도차8도이상인날수", "주야간습도차이"]
         },
-        "growth_heatmap": {
-            "avail": true,
-            "name": "growth_heatmap.png",
-            "x_labels": ["샘플번호", "주간생육길이(cm)", "초장(cm)", "줄기굵기(mm)", "잎길이(cm)", "잎폭(cm)",
-                "잎수(개)", "개화화방위치(cm)", "꽃과 줄기거리(cm)", "화방간거리(cm)", "화방경경(mm)", "엽면적지수",
-                "주간생육길이_생육상태", "줄기굵기_생육상태", "잎길이_생육상태", "입폭_생육상태", "입수_생육상태",
-                "엽면적지수_생육상태", "개화화방위치_생육상태", "꽃과줄기거리_생육상태", "생육상태점수", "생장구분"]
-        }
-    },
 
-    "device":{
-        "name": "/device:GPU:0"
+        "device":{
+            "name": "/device:GPU:0"
+        }
     }
+
 }

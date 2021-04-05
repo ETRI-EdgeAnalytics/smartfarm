@@ -82,7 +82,8 @@ def draw_harvest_per_sample(out, gt, filename):
         fig.tight_layout()
         plt.savefig(filename)
     else:
-        fn = filename.split('.')[0]
+        # fn = filename.split('.')[0]
+        fn = filename
         postfix = ['_num.png', '_kg.png']
 
         for i, post in enumerate(postfix):
