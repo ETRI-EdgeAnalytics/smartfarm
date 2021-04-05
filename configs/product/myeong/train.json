@@ -2,7 +2,6 @@
     "mode": "multi_encoder_train",
     "model":{
         "name":"lstm_enc_dec",
-        "pretrained_path": "./experiments/lstm_enc_dec/ckpt",
         "config": {
             "permute": false,
             "avg": false,
@@ -28,10 +27,10 @@
 
     "output":{
         "dir": "./experiments/product",
-        "model_dir" : "./experiments/product/models/",
-        "stat_dir" : "./experiments/product/train/stats/",
-        "pred_dir" : "./experiments/product/train/prediction/",
-        "checkpoint_dir" : "./experiments/product/train/checkpoints/",
+        "model_dir" : "./experiments/product/myeong/models/",
+        "stat_dir" : "./experiments/product/myeong/train/stats/",
+        "pred_dir" : "./experiments/product/myeong/train/prediction/",
+        "checkpoint_dir" : "./experiments/product/myeong/train/checkpoints/",
         "model_file": "product_model.h5",
         "pred_file" : "pred.csv",
         "ground_file": "groundtruth.csv",

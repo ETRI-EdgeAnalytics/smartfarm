@@ -24,13 +24,13 @@
         },
         "num_samples": 16,
         "seek_days": 42,
-        "checkpoint_dir" : "./experiments/product/train/checkpoints/"
+        "checkpoint_dir" : "./experiments/product/myeong/train/checkpoints/"
     },
 
     "output":{
         "dir": "./experiments/product/",
-        "stat_dir" : "./experiments/product/test/stats/",
-        "pred_dir" : "./experiments/product/test/prediction/",
+        "stat_dir" : "./experiments/product/myeong/test/stats/",
+        "pred_dir" : "./experiments/product/myeong/test/prediction/",
         "model_file": "product_model.h5",
         "pred_file" : "pred.csv",
         "ground_file": "groundtruth.csv",
