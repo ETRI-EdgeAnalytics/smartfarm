@@ -38,83 +38,121 @@ class Runner():
 
     def train(self):
         # ihshin
-        if self.args.predict == 'multi_encoder_train':
+        if self.args.mode == 'multi_encoder_train':
             multi_encoder_train(self.args)
         # jypark
-        elif self.args.predict == 'rf_train':
+        elif self.args.mode == 'rf_train':
             rf_train(self.args)
         else:
             raise ValueError("Wrong Predict Argument for Runner.train")
     
     def infer(self):
         # ihshin
-        if self.args.predict == 'multi_encoder_infer':
+        if self.args.mode == 'multi_encoder_infer':
             multi_encoder_infer(self.args)
         # jypark
-        elif self.args.predict == 'rf_infer':
+        elif self.args.mode == 'rf_infer':
             rf_infer(self.args)
         else:
             raise ValueError("Wrong Predict Argument for Runner.infer")
 
     def run(self):
-        if 'train' in self.args.predict:
+        if 'train' in self.args.mode:
             self.train()
-        elif 'infer' in self.args.predict:
+        elif 'infer' in self.args.mode:
             self.infer()
         else:
             raise ValueError("Wrong Predict Argument for Runner.run")
 
 def rf_train(args):
-    print('rf_train')
- 
+    """ 
+    생육 환경 데이터 훈련
+    """
+
+    # 파일로부터 설정 불러옴
+    print("Loading settings...")
+    tr = args.settings.train 
+    dl = args.settings.dataloader
+    ou = args.output
+
+    os.makedirs(ou.dir, exist_ok=True)
+    os.makedirs(ou.model_dir, exist_ok=True)
+    os.makedirs(ou.stat_dir, exist_ok=True)
+    os.makedirs(ou.pred_dir, exist_ok=True)
+    
+    
+
+    # 데이터 로드 및 전처리
+    print("Setting dataloader...")
     ds = get_dataloader(args)
-    exp_dir = args.experiment
 
-    print("mlp growth train")
-    # First Dataset Training
-    train_dataset = ds.sample(frac=0.8,random_state=0)
-    test_dataset  = ds.drop(train_dataset.index)
-    
-    train_labels = train_dataset[['d줄기굵기(mm)','d잎길이(cm)','d잎폭(cm)','주간생육길이(cm)','d엽면적지수']].copy()
-    test_labels = test_dataset[['d줄기굵기(mm)','d잎길이(cm)','d잎폭(cm)','주간생육길이(cm)','d엽면적지수']].copy()
+    # 훈련/검증 데이터 설정
+    print("Spliting train/val features/labels...")
+    X_train = ds.sample(frac=tr.ratio, random_state=0)
+    X_val  = ds.drop(X_train.index)
+    y_train = X_train[dl.grw_target + dl.diff_target].copy()
+    y_test = X_val[dl.grw_target + dl.diff_target].copy()
+    X_train.drop(dl.grw_target,axis=1,inplace=True)
+    X_val.drop(dl.grw_target,axis=1,inplace=True)
 
-    train_dataset.drop(['d줄기굵기(mm)','d잎길이(cm)','d잎폭(cm)','주간생육길이(cm)','d엽면적지수'],axis=1,inplace=True)
-    test_dataset.drop(['d줄기굵기(mm)','d잎길이(cm)','d잎폭(cm)','주간생육길이(cm)','d엽면적지수'],axis=1,inplace=True)
-
-    train_stats = train_dataset.describe()
+    # 데이터 설정
+    print("Normalizing numeric data...")
+    train_stats = X_train.describe()
     train_stats = train_stats.transpose()
-
-    test_stats = test_dataset.describe()
+    test_stats = X_val.describe()
     test_stats = test_stats.transpose()
-    
-    normed_train_data = (train_dataset - train_stats['mean']) / train_stats['std']
-    normed_test_data = (test_dataset - test_stats['mean']) / test_stats['std']
-    
-    X_train = normed_train_data
-    y_train = train_labels
+    X_train = (X_train - train_stats['mean']) / train_stats['std']
+    X_val = (X_val - test_stats['mean']) / test_stats['std']
+    config = [len(X_train.keys()),len(y_train.keys())]
+    model = get_model(args, config)
 
-    print(X_train.columns)
-
-    config = [len(train_dataset.keys()),len(train_labels.keys())]
-    model = get_model(args,config)
-
+    # 모델 훈련
+    print("Model Fitting...")
     model.fit(X_train.values, y_train.values)
-    filename = args.model_file
-    dump(model, exp_dir+filename)
-    test_dataset.to_csv(exp_dir+args.test_data.features)
-    test_labels.to_csv(exp_dir+args.test_data.labels)
-    train_stats.to_csv(exp_dir+args.util.train_stats)
 
-    print(normed_train_data.shape)
-    print(train_labels.shape)
-    print(normed_test_data.shape)
-    print(test_labels.shape)
+    # 모델 파일 출력
+    print("output model file")
+    file_path = os.path.join(ou.model_dir, ou.model_file)
+    dump(model, file_path)
 
-    rf_infer(args)
+
+    # 모델 검증
+    print("Model Testing...")
+    y_pred = pd.DataFrame(model.predict(X_val))
+
+    # 검증 결과, 점수, Feature중요 분석표 출력
+    print("Printing out prediction results...")
+    pred_path = os.path.join(ou.pred_dir , ou.pred_file)
+    y_pred.to_csv(pred_path)
+    
+
+    s = []
+    for x in range(len(y_pred.columns)):
+        pred = y_pred.iloc[:,x]
+        grou = y_test.iloc[:,x]
+        s.append(mean_squared_error(pred,grou,squared=True))
+    score_path = os.path.join(ou.stat_dir, ou.score_file)
+    pd.DataFrame(s).to_csv(score_path)
+
+    col_sorted_by_importance=model.feature_importances_.argsort()
+
+    feat_imp=pd.DataFrame({
+        'cols':X_val.columns[col_sorted_by_importance],
+        'imps':model.feature_importances_[col_sorted_by_importance]
+    })
+
+    fig = px.bar(feat_imp.sort_values(['imps'], ascending=False)[:15],
+        x = 'cols', y = 'imps', labels = {'cols':' ', 'imps':'feature importance'})
+    fig.show()
+    feat_imp_path = os.path.join(ou.stat_dir, ou.feat_file)
+    fig.write_image(feat_imp_path)
 
 def rf_infer(args):
-
+    """ 
+    생육 환경 데이터 추론
+    """
     def clip(input,ranges):
+        # clip 함수
         for col in range(len(input.columns)):
             for row in range(len(input)):
                 if input.iloc[row,col] <= ranges[col][0]:
@@ -125,68 +163,75 @@ def rf_infer(args):
                     input.iloc[row,col]
         return input
 
-    print('growth_infer')
+    # 파일로부터 설정 불러옴
+    print("Loading settings...")
+    tr = args.settings.train 
+    dl = args.settings.dataloader
+    inn = args.input
+    ou = args.output
+    pl = args.settings.plot_settings
+    os.makedirs(ou.model_dir, exist_ok=True)
+    os.makedirs(ou.stat_dir, exist_ok=True)
+    os.makedirs(ou.pred_dir, exist_ok=True)
+    os.makedirs(pl.plot_dir, exist_ok=True)
+
+    # 데이터 읽어오기
+    print("Setting dataloader...")
     ds = get_dataloader(args)
-    exp_dir = args.util.path
-    filename = args.model_file
 
-    test_dataset = pd.read_csv(exp_dir+args.test_data.features,index_col=0)
 
-    test_stats = test_dataset.describe()
+    # 테스트 데이터 설정
+    print("Setting test data feature/labels...")
+    X_test = ds
+    y_test = X_test[dl.grw_target + dl.diff_target].copy()
+    X_test.drop(dl.grw_target,axis=1,inplace=True)
+
+    # 테스트 데이터 정제
+    print("Normalizing Data...")
+    test_stats = X_test.describe()
     test_stats = test_stats.transpose()
+    X_test = (X_test - test_stats['mean']) / test_stats['std']
+    X_test = X_test.dropna()
+    config = [len(X_test.keys()),len(y_test.keys())]
 
-    normed_test_data = (test_dataset - test_stats['mean']) / test_stats['std']
-    normed_test_data = normed_test_data.dropna()
-    X_test = normed_test_data
-    test_labels = pd.read_csv(exp_dir + args.test_data.labels,index_col=0)
-    config = [len(test_dataset.keys()),len(test_labels.keys())]
-    
-    model = get_model(args,config)
-    model = load(exp_dir+filename)
+    # 모델 불러오기
+    print("Loading model file...")
+    model = get_model(args, config)
+    model = load(inn.model_dir + inn.model_filename)
+    print(model)
 
-    y_pred = pd.DataFrame(model.predict(normed_test_data))
-    y_test = pd.DataFrame(test_labels)
+    # 데이터 예측
+    print("Printing prediction results...")
+    y_pred = pd.DataFrame(model.predict(X_test))
+    y_pred.to_csv(os.path.join(ou.pred_dir + ou.pred_file))
 
-    pred = args.output.prediction
-    y_pred.to_csv(exp_dir+pred)        
-
-    score = args.output.score
-    fi = args.output.feature_importance
+    # 데이터 점수 평가
+    score = ou.stat_dir + ou.score_file
     s = []
     for x in range(len(y_pred.columns)):
         pred = y_pred.iloc[:,x]
         grou = y_test.iloc[:,x]
-        
-        s.append(mean_squared_error(pred,grou,squared=True))
-    pd.DataFrame(s).to_csv(exp_dir+score)
+        s.append(mean_squared_error(pred, grou,squared=True))
+    pd.DataFrame(s).to_csv(score)
 
-    col_sorted_by_importance=model.feature_importances_.argsort()
+    # 성장 예측표 그림
+    print("Printing Growth Rate")
+    variables = pl.axis_values
+    ranges = pl.axis_ranges
 
-    feat_imp=pd.DataFrame({
-        'cols':X_test.columns[col_sorted_by_importance],
-        'imps':model.feature_importances_[col_sorted_by_importance]
-    })
-
-    fig = px.bar(feat_imp.sort_values(['imps'], ascending=False)[:15],
-        x='cols', y='imps', labels={'cols':' ', 'imps':'feature importance'})
-    fig.show()
-    fig.write_image(exp_dir+fi)
-
-
-    variables = ( 'Thickness(mm)', 'Leaf Length(cm)', 'Leaf Width(cm)','Grown_height(cm)', 'Leaf Area')
-    ranges = [(0, 15), (5, 30), (5, 35), (0, 55), (0.0, 2.5)]             
-
-    for x in range(len(y_pred)):
-        y_pred= clip(y_pred,ranges)
-        test_labels = clip(test_labels,ranges)
+    for x in range(pl.plot_num):
+        y_pred = clip(y_pred, ranges)
+        y_test = clip(y_test,ranges)
 
         fig1 = plt.figure(figsize=(6, 6))
         radar = ComplexRadar(fig1, variables, ranges)
         radar.plot(y_pred.iloc[x],'r')
-        radar.plot(test_labels.iloc[x],'b')
+        radar.plot(y_test.iloc[x],'b')
         radar.plot(y_pred.iloc[x],color='r',marker='o')
-        plt.savefig(exp_dir+"/growth_images/pred"+str(x)+".png")
+        plt.savefig(pl.plot_dir + "pred" + str(x) + ".png")
 
+    print("Print Complete!")
+    return 0
         
 
 def multi_encoder_train(args):

@@ -1,0 +1,75 @@
+{
+    "mode" : "rf_infer",
+    "model":{
+        "name" : "rf"
+    },
+
+    "input":{
+        "path":"./dataset/2nd_data/myeong/",
+        "model_dir" : "./experiments/growth/models/",
+
+        "grw_filename": "myeong_growth_detail_data.xlsx",
+        "env_filename" : "myeong_env_detail_data.xlsx",
+        "model_filename": "growth_model.h5"
+    },
+
+    "output":{
+        "dir":"./experiments/growth/",
+        "model_dir":"./experiments/growth/models/",
+        "stat_dir" :"./experiments/growth/test/stats/",
+        "pred_dir" :"./experiments/growth/test/prediction/",
+        
+        "model_file":"growth_model.h5",
+        "pred_file":"prediction.csv",
+        "score_file":"score.csv",
+        "feat_file":"feature_importance.png"
+    },
+
+    "settings":{
+        "train":{
+            "ratio": 0.8
+        },
+        "dataloader"   :{
+            
+            "sort_index"   : ["샘플번호", "날짜"],
+
+            "env_features" : ["날짜", "실내온도", "실내습도", "이슬점(Td)", "증산(HD)", "대기압", "PWS(?)", "수분량",
+                "엔탈피", "비부피", "밀도", "PW(?)수증기", "절대습도", "절대AH(?)", "실내온도표준편차",
+                "실내습도표준편차", "이슬점(Td)표준편차", "증산(HD)표준편차", "대기압표준편차", "PWS(?)표준편차",
+                "수분량표준편차", "엔탈피표준편차", "비부피표준편차", "밀도표준편차", "PW(?)수증기표준편차", "절대습도표준편차",
+                "절대AH(?)표준편차", "최소실내온도", "최소실내습도", "최소이슬점(Td)", "최소증산(HD)", "최소대기압",
+                "최소PWS(?)", "최소수분량", "최소엔탈피", "최소비부피", "최소밀도", "최소PW(?)수증기", "최소절대습도",
+                "최소절대AH(?)", "최대실내온도", "최대실내습도", "최대이슬점(Td)", "최대증산(HD)", "최대대기압",
+                "최대PWS(?)", "최대수분량", "최대엔탈피", "최대비부피", "최대밀도", "최대PW(?)수증기", "최대절대습도",
+                "최대절대AH(?)", "오전적정증산(HD)누적시간", "일출일몰적정증산(HD)누적시간", "하루적정증산(HD)누적시간",
+                "오후심각증산(HD)누적시간", "오전심각증산(HD)누적시간", "12도이하온도누적시간", "30도이상온도누적시간",
+                "적정온도누적시간", "주간평균온도", "오후부터일몰까지평균온도", "일출부터12시까지평균온도", "적정습도누적시간",
+                "일출전후한시간평균온도", "일몰전후한시간평균온도", "적정온도변화폭(하위)", "적정온도변화폭(상위)", "야간평균온도",
+                "일몰일출적합증산(HD)누적시간", "야간평균습도", "시간당5도이상의변화수", "주간평균습도", "오후부터일몰까지평균습도",
+                "일출부터12시까지평균습도", "주야간온도차이", "주야간온도차8도이상인날수", "주야간습도차이"],
+
+            "grw_features" : ["줄기굵기(mm)", "잎길이(cm)", "잎폭(cm)", "엽면적지수"],
+            "grw_target"   : ["d줄기굵기(mm)", "d잎길이(cm)", "d잎폭(cm)", "d엽면적지수"],
+            "diff_features": ["초장(cm)"],
+            "diff_target"  : ["주간생육길이(cm)"],
+            "date"         : "날짜",
+            "date_range"   : 21,
+            "past_range"   : 14,
+            "sample_num"   : 16,
+            "total_weeks"  : 15,
+            "shift_week"   : 1
+        },
+
+        
+        "plot_settings":{
+            "plot_dir" : "./experiments/growth/test/images/",
+            "axis_num" : 5,
+            "plot_num" : 20,
+            "axis_values": ["Thickness(mm)", "Leaf Length(cm)" , "Leaf Width(cm)", "Grown Height", "Leaf Area"],
+            "axis_ranges" : [[0,15], [5,30] ,[5,35], [0,55], [0.0,2.5]],
+            "y_pred_color" : "r",
+            "grd_truth_color" : "b"
+        }
+        
+    }
+}

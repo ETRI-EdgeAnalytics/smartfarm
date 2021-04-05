@@ -16,7 +16,7 @@
 
     "model":{
         "name":"lstm_enc_dec",
-        "pretrained_path": "/home/ikhee/project/EdgeAnalytics/smartfarm-1/experiments/lstm_enc_dec/ckpt",
+        "pretrained_path": "./experiments/lstm_enc_dec/ckpt",
         "config": {
             "permute": false,
             "avg": true,

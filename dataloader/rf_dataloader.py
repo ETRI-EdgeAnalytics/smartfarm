@@ -9,108 +9,137 @@ import openpyxl
 __all__ = ['rf_dataloader']
 
 def rf_dataloader(args):
-    path = args.directory
+    """ 
+        데이터 전처리  
+        입력: 생육, 환경
+    """ 
+    # 환경 정보 읽어오기
+    path = args.input.path
+    grw = args.input.grw_filename
+    env = args.input.env_filename
 
-    print("target: growth")
-    grw = args.train_data.grw
-    env = args.train_data.env
+    dl = args.settings.dataloader
 
-    #생육 데이터 전처리
-    df_grw = pd.read_excel(
-        os.path.join(path,grw),
-        engine='openpyxl',
-    )
+    """ 
+        생육 데이터 전처리 
+    """
+    df_grw = pd.read_excel(os.path.join(path, grw),engine='openpyxl')
 
-    df_grw = df_grw.sort_values(by=['샘플번호','날짜'])
-    df_grww = df_grw.copy()
+    # 날짜 정의
+    df_grw_date = pd.DataFrame(df_grw[dl.date].unique())
 
-    grw_date = df_grw['날짜'].unique()
-    grw_date = pd.DataFrame(grw_date)
+    # 날짜와 샘플에 따라 생육 데이터 정리
+    df_grw_sort = df_grw.set_index(dl.sort_index)
+    df_grw_sort = df_grw_sort.sort_index()
 
-    df_grw = df_grw.set_index(['샘플번호','날짜'])
-    df_grw = df_grw.sort_index()
-    df_grw = df_grw.reindex(columns=['초장(cm)',
-                                    '줄기굵기(mm)',
-                                    '잎길이(cm)',
-                                    '잎폭(cm)',
-                                    '엽면적지수'])
+    # 주간 생육상태 features 추출 
+    df_grw_feat = df_grw_sort.reindex(columns = dl.grw_features)
 
-    for [samp,date],rows in df_grw.iterrows():
-        df_grw.loc[samp,:].replace(to_replace=0.0,method='ffill',inplace=True)
+    # 주간 생육상태 features 전처리
+    for [samp, date], rows in df_grw_feat.iterrows():
+        df_grw_feat.loc[samp,:].replace(to_replace=0.0,
+                                            method='ffill',inplace=True)
 
-    df_grw_label = df_grww.shift(-1).reindex(columns=['주간생육길이(cm)',
-                                                    '줄기굵기(mm)',
-                                                    '잎길이(cm)',
-                                                    '잎폭(cm)',
-                                                    '엽면적지수'])
-
-    df_grw_label.rename(columns={'줄기굵기(mm)':'d줄기굵기(mm)',
-                                '잎길이(cm)':'d잎길이(cm)',
-                                '잎폭(cm)':'d잎폭(cm)',
-                                '엽면적지수':'d엽면적지수'},
-                            inplace=True)
-    df_growth_total = pd.concat([df_grw.reset_index(drop=True),
-                                df_grw_label.reset_index(drop=True)], 
-                                axis=1)
-
-    # 환경 전처리
-
-    # process Environmnet
-    df_env = pd.read_excel(
-        os.path.join(path,env),
-        engine='openpyxl',
-    )    
+    # 주간 생육상태 target 지정
+    df_grw_target = df_grw_feat \
+        .shift(-1 * dl.shift_week) \
+        .reindex(columns = dl.grw_features)
     
-    date = pd.DataFrame(df_env['날짜'])
-    df_grw = df_grw.reset_index(drop=True)
-    startdate = df_grww['날짜'][0]
-    enddate = df_grww['날짜'].iloc[-1]
-    startindex = date.index[date['날짜']==startdate][0]
+    assert (len(dl.grw_target) == len(dl.grw_features))
 
-    grw_idx = []
-    for idx, row in grw_date.iterrows():
-        a = date.index[date['날짜']==row[0]][0]
-        grw_idx.append(a)
-        
+    for x in range(len(dl.grw_target)):
+        df_grw_target.rename(columns = 
+            {dl.grw_features[x] : dl.grw_target[x]}, inplace=True)  
 
-    env_idx = []
-    total_day = 21
-    past_day = 14
-    one_week = 7
-    for x in grw_idx:
+    # 주간 생육 성장 features 추출
+    df_diff_feat = df_grw_sort.reindex(columns = dl.diff_features)
+
+    # 주간 생육 성장 features 전처리
+    for [samp, date], rows in df_diff_feat.iterrows():
+        df_diff_feat.loc[samp, :].replace(to_replace=0.0, 
+                                            method='ffill', inplace=True)
+
+    # 주간 생육상태 target 지정
+    df_diff_target = df_grw_sort.shift(-1 * dl.shift_week) \
+                                    .reindex(columns = dl.diff_target)
+
+    # 생육 데이터 통합
+    df_growth = pd.concat([
+        df_diff_feat.reset_index(drop=True),
+        df_grw_feat.reset_index(drop=True),
+        df_diff_target.reset_index(drop=True),
+        df_grw_target.reset_index(drop=True)], axis=1)
+
+    """ 
+        환경 데이터 전처리 
+    """
+    df_env = pd.read_excel(os.path.join(path, env), engine='openpyxl')
+
+
+    # 주간 생육상태 features 추출 
+    df_env = df_env.reindex(columns=dl.env_features)
+
+    # 날짜 정리
+    df_env_date   = pd.DataFrame(df_env['날짜'])
+    grw_startdate = df_grw_date.iloc[0].values[0]
+    grw_enddate   = df_grw_date.iloc[-1].values[0]
+    env_startindex = df_env_date.index[df_env_date['날짜']==grw_startdate][0]
+
+    # 생육 기록 날짜로부터 index 찾기 
+    grw_index = []
+    for idx, row in df_grw_date.iterrows():
+        grw_index.append(df_env_date.index[
+            df_env_date['날짜'] == row.values[0]][0])
+
+    # 생육 기록 날짜 전후로 환경 날짜 index 찾기
+    env_index = []
+    for x in grw_index:
         arr = []
-        for t in range(0,total_day):
-            arr.append(x + t - past_day)
-        env_idx.append(arr)
+        for t in range(0, dl.date_range):
+            arr.append(x + t - dl.past_range)
+        env_index.append(arr)
+    
+    # 전후 환경 index 바탕으로 환경 feature 전부 합치기 
+    df_env_feat = []
+    for x in range(len(env_index)):
+        df_env_feat.append(df_env.iloc[env_index[x]].stack().T.values)
+    df_env_feat = pd.DataFrame(df_env_feat)
+    
+    # 편의를 위해 환경 데이터에 이름+숫자으로 표기
+    env_cols_names = []
+    for y in range(dl.date_range):
+        for x in df_env.columns:
+            env_cols_names.append(x + "_" + str(y))
+    assert(len(env_cols_names) == len(df_env_feat.columns))
+    for x in range(len(env_cols_names)):
+        df_env_feat.rename(columns = 
+                            {df_env_feat.columns[x] : env_cols_names[x]}, 
+                            inplace = True)
 
-    df_feat = []
-    for x in range(len(env_idx)):
-        a = df_env.iloc[env_idx[x]].stack().T.values
-        df_feat.append(a)
-    df_feat = pd.DataFrame(df_feat)
+    """ 
+        환경 및 생육 데이터 통합 및 처리 
+    """
 
-    env_cols = []
-    for y in range(total_day):
-        for x in range(len(df_env.columns)):
-            env_cols.append(df_env.columns[x] + '_' + str(y))
-    df_feat.columns = env_cols 
+    # 환경 생육 데이터 통합
+    df_env_feat = pd.concat([df_env_feat] * 16, axis = 0)
+    dataset = pd.concat([df_env_feat.reset_index(drop = True),
+                        df_growth.reset_index(drop = True)], axis = 1)
 
-    sample_num=16
-    df_feat = pd.DataFrame(df_feat)
-    df_label = df_growth_total.reset_index().set_index(['index'])
-    df_fets = pd.concat([df_feat] * sample_num)
+    # 최초 날짜 및 최종 날짜 삭제
+    drop_weeks = []
+    start_week = 0
+    end_week = dl.total_weeks - 1
+    for x in range(int(dataset.shape[0] / dl.total_weeks)):
+        drop_weeks.append(start_week + (dl.total_weeks * x))
+        drop_weeks.append(end_week + (dl.total_weeks * x))
+    dataset.drop(drop_weeks,inplace=True)
+   
+    # 날짜_N 열 지우기
+    date_names = []
+    for y in range(dl.date_range):
+        date_names.append("날짜" + "_" + str(y))   
+    dataset.drop(date_names,axis=1,inplace=True)
 
-    df_target = df_label
-    data = pd.concat([df_fets.reset_index(drop=True),df_target.reset_index(drop=True)],axis=1)
-    data = data[data['날짜_13'] != startdate]
-    data = data[data['날짜_13'] != startdate + one_week]
-
-    data = data[data['날짜_13'] != enddate - one_week]
-    data = data[data['날짜_13'] != enddate]
-
-    data = data.drop(['날짜_0','날짜_1','날짜_2','날짜_3','날짜_4','날짜_5','날짜_6','날짜_7','날짜_8','날짜_9','날짜_10','날짜_11','날짜_12','날짜_14','날짜_15','날짜_16','날짜_17','날짜_18','날짜_19','날짜_20','날짜_6'],axis=1)
-    dataset = data.interpolate()
-        
-
-    ds = dataset
-    return ds
+    # 전처리 완료
+    print("dataloader complete...")
+    return dataset
