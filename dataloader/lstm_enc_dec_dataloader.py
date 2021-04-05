@@ -10,32 +10,32 @@ __all__ = ['dataloader4lstm_enc_dec']
 
 def dataloader4lstm_enc_dec(args):
     train_data_list = []
-    train_names = args.data.train_data.names
-    path = args.data.train_data.path
+    train_names = args.input.feature_data.names
+    path = args.input.feature_data.path
 
-    df_list = make_data_frame(train_names, path, label=False, seek_days=args.data.seek_days)
+    df_list = make_data_frame(train_names, path, label=False, seek_days=args.input.seek_days)
 
     for df in df_list:
 
         if '초장(cm)' in df.columns:
-            data = df2numpy(df, args.data.num_samples, offset=args.data.num_samples, dropkey=['날짜'])
+            data = df2numpy(df, args.input.num_samples, offset=args.input.num_samples, dropkey=['날짜'])
         elif '샘플번호' in df.columns:
-            data = df2numpy(df, args.data.num_samples, offset=args.data.num_samples, dropkey=['날짜', '샘플번호'])
+            data = df2numpy(df, args.input.num_samples, offset=args.input.num_samples, dropkey=['날짜', '샘플번호'])
         else:
-            data = df2numpy(df, args.data.seek_days, offset=7, dropkey=['날짜'])
+            data = df2numpy(df, args.input.seek_days, offset=7, dropkey=['날짜'])
         
         tf_data = tf.convert_to_tensor(data, dtype=tf.float32)
         train_data_list.append(tf_data)
 
     label_data_list = []
-    label_names = args.data.label_data.names
-    path = args.data.label_data.path
+    label_names = args.input.label_data.names
+    path = args.input.label_data.path
 
     df_list = make_data_frame(label_names, path, label=True)
 
     for df in df_list:
         
-        data = df2numpy(df, args.data.num_samples, offset=args.data.num_samples, dropkey=['날짜', '샘플번호'])
+        data = df2numpy(df, args.input.num_samples, offset=args.input.num_samples, dropkey=['날짜', '샘플번호'])
 
         tf_data = tf.convert_to_tensor(data, dtype=tf.float32)
         label_data_list.append(data)
@@ -84,17 +84,17 @@ def dataloader4lstm_enc_dec_env(args):
     label_data_list = []
     df_dict = dict()
     
-    train_names = args.data.train_data.names
-    path = args.data.train_data.path
+    train_names = args.input.train_data.names
+    path = args.input.train_data.path
 
     file_path = os.path.join(path, train_names)
     df = pd.ExcelFile(file_path)
     sheet_df = pd.read_excel(df, 'Sheet1')
     df_dict['env'] = sheet_df
 
-    label_names = args.data.label_data.names
+    label_names = args.input.label_data.names
     for name in label_names:
-        path = args.data.label_data.path
+        path = args.input.label_data.path
         file_path = os.path.join(path, name)
         df = pd.ExcelFile(file_path)
         sheet_df = pd.read_excel(df, 'Sheet1')
@@ -106,17 +106,17 @@ def dataloader4lstm_enc_dec_env(args):
         else:
             raise ValueError(name)
     
-    train_df, label_dfs = make_data_frame_env(df_dict=df_dict, seek_days=args.data.seek_days, interval=args.data.interval)
+    train_df, label_dfs = make_data_frame_env(df_dict=df_dict, seek_days=args.input.seek_days, interval=args.input.interval)
 
-    data = df2numpy(train_df, args.data.seek_days, offset=7, dropkey=['날짜'])
+    data = df2numpy(train_df, args.input.seek_days, offset=7, dropkey=['날짜'])
     
     tf_data = tf.convert_to_tensor(data, dtype=tf.float32)
     train_data_list.append(tf_data)
 
-    label_names = args.data.label_data.names
+    label_names = args.input.label_data.names
     
     for df in label_dfs:
-        data = df2numpy(df, args.data.num_samples, offset=args.data.num_samples, dropkey=['날짜', '샘플번호'])
+        data = df2numpy(df, args.input.num_samples, offset=args.input.num_samples, dropkey=['날짜', '샘플번호'])
 
         tf_data = tf.convert_to_tensor(data, dtype=tf.float32)
         label_data_list.append(data)
