@@ -1,0 +1,93 @@
+{
+    "mode": "multi_encoder_train",
+    "model":{
+        "name":"lstm_enc_dec",
+        "config": {
+            "permute": false,
+            "avg": false,
+            "input_shapes": [],
+            "output_shape": [],
+            "explain": true,
+            "env_only": false
+        }
+    },
+
+    "input":{
+        "feature_data":{
+            "path": "./dataset/2nd_data/beak",
+            "names": ["beak_env_detail_data.xlsx", "beak_growth_detail_data.xlsx", "beak_product_1_data.xlsx", "beak_product_2_data.xlsx"]
+        },
+        "label_data":{
+            "path": "./dataset/2nd_data/beak",
+            "names": ["beak_product_3_data.xlsx", "beak_product_4_data.xlsx"]
+        },
+        "num_samples": 16,
+        "seek_days": 42
+    },
+
+    "output":{
+        "dir": "./experiments/product",
+        "model_dir" : "./experiments/product/beak/models/",
+        "stat_dir" : "./experiments/product/beak/train/stats/",
+        "pred_dir" : "./experiments/product/beak/train/prediction/",
+        "checkpoint_dir" : "./experiments/product/beak/train/checkpoints/",
+        "model_file": "product_model.h5",
+        "pred_file" : "pred.csv",
+        "ground_file": "groundtruth.csv",
+        "harvest_file": "harvest.png"
+    },
+
+
+
+    "train":{
+        "total_epochs": 500,
+        "batch": 1,
+        "metric": "mse",
+        "save_path": "./experiments/product/beak/train/",
+        "ground_truth_file" : ""
+
+    },
+
+    "optimizer":{
+        "algorithm": "sgd",
+        "config": {
+            "learning_rate": 0.0001,
+            "momentum": 0.9,
+            "nesterov": true
+        }
+    },
+
+    "util":{
+        "save_path": "experiments/lstm_enc_dec",
+        "env_heatmap": {
+            "avail": true,
+            "name": "env_heatmap.png",
+            "x_labels": ["실내온도", "실내습도", "이슬점(Td)", "증산(HD)", "대기압", "PWS(?)", "수분량",
+                "엔탈피", "비부피", "밀도", "PW(?)수증기", "절대습도", "절대AH(?)", "실내온도표준편차",
+                "실내습도표준편차", "이슬점(Td)표준편차", "증산(HD)표준편차", "대기압표준편차", "PWS(?)표준편차",
+                "수분량표준편차", "엔탈피표준편차", "비부피표준편차", "밀도표준편차", "PW(?)수증기표준편차", "절대습도표준편차",
+                "절대AH(?)표준편차", "최소실내온도", "최소실내습도", "최소이슬점(Td)", "최소증산(HD)", "최소대기압",
+                "최소PWS(?)", "최소수분량", "최소엔탈피", "최소비부피", "최소밀도", "최소PW(?)수증기", "최소절대습도",
+                "최소절대AH(?)", "최대실내온도", "최대실내습도", "최대이슬점(Td)", "최대증산(HD)", "최대대기압",
+                "최대PWS(?)", "최대수분량", "최대엔탈피", "최대비부피", "최대밀도", "최대PW(?)수증기", "최대절대습도",
+                "최대절대AH(?)", "오전적정증산(HD)누적시간", "일출일몰적정증산(HD)누적시간", "하루적정증산(HD)누적시간",
+                "오후심각증산(HD)누적시간", "오전심각증산(HD)누적시간", "12도이하온도누적시간", "30도이상온도누적시간",
+                "적정온도누적시간", "주간평균온도", "오후부터일몰까지평균온도", "일출부터12시까지평균온도", "적정습도누적시간",
+                "일출전후한시간평균온도", "일몰전후한시간평균온도", "적정온도변화폭(하위)", "적정온도변화폭(상위)", "야간평균온도", 
+                "일몰일출적합증산(HD)누적시간", "야간평균습도", "시간당5도이상의변화수", "주간평균습도", "오후부터일몰까지평균습도",
+                "일출부터12시까지평균습도", "주야간온도차이", "주야간온도차8도이상인날수", "주야간습도차이"]
+        },
+        "growth_heatmap": {
+            "avail": true,
+            "name": "growth_heatmap.png",
+            "x_labels": ["샘플번호", "주간생육길이(cm)", "초장(cm)", "줄기굵기(mm)", "잎길이(cm)", "잎폭(cm)",
+                "잎수(개)", "개화화방위치(cm)", "꽃과 줄기거리(cm)", "화방간거리(cm)", "화방경경(mm)", "엽면적지수",
+                "주간생육길이_생육상태", "줄기굵기_생육상태", "잎길이_생육상태", "입폭_생육상태", "입수_생육상태",
+                "엽면적지수_생육상태", "개화화방위치_생육상태", "꽃과줄기거리_생육상태", "생육상태점수", "생장구분"]
+        }
+    },
+
+    "device":{
+        "name": "/device:GPU:0"
+    }
+}
