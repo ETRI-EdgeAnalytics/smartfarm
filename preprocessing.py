@@ -6,7 +6,7 @@ import argparse
 from utils import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-cp', '--config_path', type=str, default='./configs/config.json')
+parser.add_argument('-cp', '--config_path', type=str, default='./configs/preprocessing.json')
 conf = parser.parse_args()
 
 def HD_cumulative_time(df=None):
