@@ -57,7 +57,7 @@ def dataloader4lstm_enc_dec(args):
 
     input_shape = [env.shape, growth.shape, pro1.shape, pro2.shape]
     
-    if args.model.config.avg:
+    if args.settings.dataloader.avg:
         avg_label_data_list = tf.math.divide_no_nan(pro4, pro3)
         for e, g, p1, p2, a in zip(env, growth, pro1, pro2, avg_label_data_list):
             ds.append([
@@ -84,8 +84,10 @@ def dataloader4lstm_enc_dec_env(args):
     label_data_list = []
     df_dict = dict()
     
-    train_names = args.input.train_data.names
-    path = args.input.train_data.path
+
+    train_names = args.input.feature_data.names
+    path = args.input.feature_data.path
+
 
     file_path = os.path.join(path, train_names)
     df = pd.ExcelFile(file_path)
@@ -135,7 +137,7 @@ def dataloader4lstm_enc_dec_env(args):
 
     input_shape = [env.shape]
 
-    if args.model.config.avg:
+    if args.settings.dataloader.avg:
         avg_label_data_list = tf.math.divide_no_nan(pro4, pro3)
 
         for e, a in zip(env, avg_label_data_list):

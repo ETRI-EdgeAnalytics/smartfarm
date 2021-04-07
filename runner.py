@@ -115,7 +115,6 @@ def rf_train(args):
     file_path = os.path.join(ou.model_dir, ou.model_file)
     dump(model, file_path)
 
-
     # 모델 검증
     print("Model Testing...")
     y_pred = pd.DataFrame(model.predict(X_val))
@@ -265,9 +264,10 @@ def multi_encoder_train(args):
     # 파일로부터 설정 가져오기
     print("Loading json file...")
     ou = args.output
-    tr = args.train
+    tr = args.settings.train
     os.makedirs(ou.stat_dir,exist_ok=True)
     os.makedirs(ou.pred_dir,exist_ok=True)
+    os.makedirs(ou.heatmap_dir,exist_ok=True)
     os.makedirs(ou.checkpoint_dir,exist_ok=True)
     
 
@@ -280,21 +280,19 @@ def multi_encoder_train(args):
     train_ds = ds[: -3]
     test_ds = ds[-2 : -1]
     # input parameters for lstm_inc_dec model
-    args.model.config.input_shapes = input_shapes
-    args.model.config.output_shape = output_shape
+    args.settings.dataloader.input_shapes = input_shapes
+    args.settings.dataloader.output_shape = output_shape
 
-    save_path = args.util.save_path
     """ 
     디바이스 설정 및 훈련 시작
     """
-    print("Select device... "+args.device.name)
-    with tf.device(args.device.name):
+    print("Select device... "+args.settings.device.name)
+    with tf.device(args.settings.device.name):
         # 모델 불러오기
         print("Setting up Model and optimizer...")
         model = get_model(args)
         optimizer = get_optimizer(args)
         train_loss = keras.metrics.Mean(name="train_loss")
-        # checkpoint_dir = os.path.join(save_path, 'ckpt/ckpt')
         checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
 
         # 훈련 시작
@@ -319,60 +317,61 @@ def multi_encoder_train(args):
                 print("Validating training...")
                 X_val , y_val = test_ds[-1]
                 y_pred = inference(X_val, y_val, model)
+                
+                print("Saving tensor 2 file ...")
                 tensor2csv(ou.pred_dir + ou.pred_file , y_pred)
                 tensor2csv(ou.pred_dir + ou.ground_file, y_val)
                 draw_harvest_per_sample(y_pred, 
                                         y_val, ou.pred_dir + ou.harvest_file)
         
         # Drawing heatmap and bar chart for explanation
-        if args.model.config.explain:
-            if args.model.config.env_only:
-                if args.util.env_heatmap.avail:
+        if args.settings.dataloader.explain:
+            if args.settings.dataloader.env_only:
+                if args.settings.env_heatmap.avail:
                     e = model.explain(test_ds, return_heatmap=True)
-                    x_labels = args.util.env_heatmap.x_labels
+                    x_labels = args.settings.env_heatmap.x_labels
                     y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
-                    heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
+                    
+                    heatmap_path = os.path.join(ou.heatmap_dir, args.settings.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
             else:
                 e, g, _, _ = model.explain(test_ds, return_heatmap=True)
-                if args.util.env_heatmap.avail:
-                    x_labels = args.util.env_heatmap.x_labels
+                if args.settings.env_heatmap.avail:
+                    x_labels = args.settings.env_heatmap.x_labels
                     y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
-                    heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
+                    heatmap_path = os.path.join(ou.heatmap_dir, args.settings.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
-                    bar_name = "bar_" + args.util.env_heatmap.name
-                    bar_path = os.path.join(save_path, bar_name)
+                    bar_name = "bar_" + args.settings.env_heatmap.name
+                    bar_path = os.path.join(ou.heatmap_dir, bar_name)
                     draw_bargraph(data=e, filename=bar_path, x_labels=x_labels)
                 
-                if args.util.growth_heatmap.avail:
-                    x_labels = args.util.growth_heatmap.x_labels
+                if args.settings.growth_heatmap.avail:
+                    x_labels = args.settings.growth_heatmap.x_labels
                     y_labels = [str(i) for i in range(1, args.input.num_samples+1)]
-                    heatmap_path = os.path.join(save_path, args.util.growth_heatmap.name)
+                    heatmap_path = os.path.join(ou.heatmap_dir, args.settings.growth_heatmap.name)
                     draw_heatmap(heatmap=g, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
-                    bar_name = "bar_" + args.util.growth_heatmap.name
-                    bar_path = os.path.join(save_path, bar_name)
+                    bar_name = "bar_" + args.settings.growth_heatmap.name
+                    bar_path = os.path.join(ou.heatmap_dir, bar_name)
                     draw_bargraph(data=g, filename=bar_path, x_labels=x_labels)
 
 def multi_encoder_infer(args):
     """ 
     Product 데이터 추론
     """
-    inn = args.input
     ou = args.output
-
+    inn = args.input
+    os.makedirs(ou.pred_dir ,exist_ok=True)
+    os.makedirs(ou.heatmap_dir, exist_ok=True)
     # get data loader - [[data], [label]]
     print("Setting Dataloader...")   
     ds, input_shapes, output_shape = get_dataloader(args)
     # input parameters for lstm_inc_dec model
-    args.model.config.input_shapes = input_shapes
-    args.model.config.output_shape = output_shape
-
-    save_path = args.util.save_path
-    
+    args.settings.dataloader.input_shapes = input_shapes
+    args.settings.dataloader.output_shape = output_shape
     
     # 모델 설정
     print("Loading Model...")
-    with tf.device(args.device.name):
+    with tf.device(args.settings.device.name):
         # model create
         model = get_model(args)
         # optimizer create
@@ -391,30 +390,30 @@ def multi_encoder_infer(args):
         
         # 설명 그래프 그리기
         print("Drawing heatmap and bar chart for explanation...")
-        if args.model.config.explain:
-            if args.model.config.env_only:
-                if args.util.env_heatmap.avail:
+        if args.settings.dataloader.explain:
+            if args.settings.dataloader.env_only:
+                if args.settings.env_heatmap.avail:
                     e = model.explain(ds, return_heatmap=True)
-                    x_labels = args.util.env_heatmap.x_labels
+                    x_labels = args.settings.env_heatmap.x_labels
                     y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
-                    heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
+                    heatmap_path = os.path.join(ou.heatmap_dir, args.settings.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
             else:
                 e, g, _, _ = model.explain(ds, return_heatmap=True)
-                if args.util.env_heatmap.avail:
-                    x_labels = args.util.env_heatmap.x_labels
+                if args.settings.env_heatmap.avail:
+                    x_labels = args.settings.env_heatmap.x_labels
                     y_labels = [str(i) for i in range(args.input.seek_days, 0, -1)]
-                    heatmap_path = os.path.join(save_path, args.util.env_heatmap.name)
+                    heatmap_path = os.path.join(ou.heatmap_dir, args.settings.env_heatmap.name)
                     draw_heatmap(heatmap=e, filename=heatmap_path, x_labels=x_labels, y_labels=y_labels)
-                    bar_name = "bar_" + args.util.env_heatmap.name
-                    bar_path = os.path.join(save_path, bar_name)
+                    bar_name = "bar_" + args.settings.env_heatmap.name
+                    bar_path = os.path.join(ou.heatmap_dir, bar_name)
                     draw_bargraph(data=e, filename=bar_path, x_labels=x_labels)
                 
-                if args.util.growth_heatmap.avail:
-                    x_labels = args.util.growth_heatmap.x_labels
+                if args.settings.growth_heatmap.avail:
+                    x_labels = args.settings.growth_heatmap.x_labels
                     y_labels = [str(i) for i in range(1, args.input.num_samples+1)]
-                    heatmap_path = os.path.join(save_path, args.util.growth_heatmap.name)
+                    heatmap_path = os.path.join(ou.heatmap_dir, args.settings.growth_heatmap.name)
                     draw_bargraph(data=g, filename=heatmap_path, x_labels=x_labels)
-                    bar_name = "bar_" + args.util.growth_heatmap.name
-                    bar_path = os.path.join(save_path, bar_name)
+                    bar_name = "bar_" + args.settings.growth_heatmap.name
+                    bar_path = os.path.join(ou.heatmap_dir, bar_name)
                     draw_bargraph(data=g, filename=bar_path, x_labels=x_labels)

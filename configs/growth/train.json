@@ -3,7 +3,6 @@
     "model":{
         "name" : "rf"
     },
-    
 
     "input":{
         "path":"dataset/2nd_data/myeong/",
@@ -16,7 +15,6 @@
         "model_dir":"./experiments/growth/models/",
         "stat_dir" :"./experiments/growth/train/stats/",
         "pred_dir" :"./experiments/growth/train/prediction/",
-
         "model_file":"growth_model.h5",
         "pred_file":"prediction.csv",
         "score_file":"score.csv",
