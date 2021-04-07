@@ -1,0 +1,16 @@
+{
+    "env":{
+        "src_path": "./dataset/2nd_data/preprocessing",
+        "dest_path":"./dataset/2nd_data/preprocessing",
+        "names": ["HD_2018_01_Hwang.xlsx", "HD_2018_02_Hwang.xlsx", "HD_2018_03_Hwang.xlsx", "HD_2018_04_Hwang.xlsx", "HD_2018_05_Hwang.xlsx"],
+        "save_name": "env_detail.xlsx"
+    },
+    "growth":{
+        "src_path": "./dataset/2nd_data/preprocessing",
+        "dest_path":"./dataset/2nd_data/preprocessing",
+        "names": "growth_2nd.xlsx",
+        "save_name": "growth_detail.xlsx",
+        "farm_area": 7590,
+        "planted_hills": 18600
+    }
+}
