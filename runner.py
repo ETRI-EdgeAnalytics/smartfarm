@@ -318,7 +318,7 @@ def multi_encoder_train(args):
                 X_val , y_val = test_ds[-1]
                 y_pred = inference(X_val, y_val, model)
                 
-                print("Saving tensor 2 file ...")
+                print("Saving tensor to file ...")
                 tensor2csv(ou.pred_dir + ou.pred_file , y_pred)
                 tensor2csv(ou.pred_dir + ou.ground_file, y_val)
                 draw_harvest_per_sample(y_pred, 
